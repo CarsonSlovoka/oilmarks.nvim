@@ -1,0 +1,29 @@
+*oilmarks.txt*  oil-style bookmarks
+
+==============================================================================
+COMMANDS                                            *oilmarks*
+
+:Oilmarks [float] [trash]   Open the bookmark buffer. `float` uses a floating
+                            window. `trash` opens the trash list.
+:OilmarksAdd                Bookmark the current file and line. Asks for a
+                            note. This writes immediately.
+:OilmarksNext               Next bookmark in the current file.
+:OilmarksPrev               Previous bookmark in the current file.
+:OilmarksReload             Reload bookmarks.lua from disk.
+
+==============================================================================
+BUFFER                                              *oilmarks-buffer*
+
+The buffer is the editor. `:w` commits. A failed parse aborts the write.
+
+Columns are tab-separated: concealed id, name, location, note.
+Location is `path:line` or `path:line:col`.
+
+Delete a line and `:w` to trash it. Pasting a line with an existing id
+creates a copy. In the trash buffer, `r` marks a row for restore and `:w`
+commits; deleting a trash row and writing purges it.
+
+Line reattachment happens on jump. The new line number stays in memory until
+the next `:w`.
+
+ vim:tw=78:ts=8:ft=help:norl:
