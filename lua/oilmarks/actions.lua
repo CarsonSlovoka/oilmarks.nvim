@@ -71,6 +71,18 @@ local function confirm_save(bufnr)
   return choice == 2
 end
 
+local function open_target(path, lnum, col)
+  if vim.fn.isdirectory(path) == 1 then
+    local ok, oil = pcall(require, "oil")
+    if ok and oil.open then
+      oil.open(path)
+      return
+    end
+  end
+  vim.cmd("edit " .. vim.fn.fnameescape(path))
+  pcall(vim.api.nvim_win_set_cursor, 0, { lnum or 1, math.max((col or 1) - 1, 0) })
+end
+
 local function place(entry, how, info)
   local status
   entry, status = anchor.resolve(entry)
@@ -109,8 +121,7 @@ local function place(entry, how, info)
       vim.api.nvim_win_close(win, false)
     end
   end
-  vim.cmd("edit " .. vim.fn.fnameescape(entry.path))
-  pcall(vim.api.nvim_win_set_cursor, 0, { entry.lnum, math.max((entry.col or 1) - 1, 0) })
+  open_target(entry.path, entry.lnum, entry.col)
   require("oilmarks.signs").refresh(0)
 end
 
@@ -141,7 +152,8 @@ function M.preview(bufnr)
     return
   end
   entry = anchor.resolve(vim.deepcopy(entry))
-  if vim.fn.filereadable(entry.path) == 0 then
+  local is_dir = vim.fn.isdirectory(entry.path) == 1
+  if not is_dir and vim.fn.filereadable(entry.path) == 0 then
     notify("missing file: " .. entry.path, vim.log.levels.WARN)
     return
   end
@@ -152,9 +164,10 @@ function M.preview(bufnr)
     preview_win = vim.api.nvim_get_current_win()
     vim.wo[preview_win].previewwindow = true
   end
-  vim.cmd("edit " .. vim.fn.fnameescape(entry.path))
-  vim.bo.modifiable = false
-  pcall(vim.api.nvim_win_set_cursor, 0, { entry.lnum, 0 })
+  open_target(entry.path, entry.lnum, entry.col)
+  if not is_dir then
+    vim.bo.modifiable = false
+  end
   vim.cmd("normal! zz")
   local origin = vim.fn.bufwinid(bufnr)
   if origin ~= -1 then
@@ -299,20 +312,49 @@ end
 function M.add(opts)
   opts = opts or {}
   local bufnr = vim.api.nvim_get_current_buf()
-  if vim.bo[bufnr].buftype ~= "" or vim.api.nvim_buf_get_name(bufnr) == "" then
-    notify("current buffer is not a file", vim.log.levels.WARN)
-    return
+  local path, lnum, col, line
+
+  -- Support oil directory buffers
+  if vim.bo[bufnr].filetype == "oil" then
+    local ok, oil = pcall(require, "oil")
+    if ok and oil.get_current_dir then
+      local dir = oil.get_current_dir(bufnr)
+      if dir and dir ~= "" then
+        path = vim.fn.fnamemodify(dir, ":p")
+        lnum = 1
+        col = 1
+        line = ""
+      end
+    end
   end
+
+  if not path then
+    if vim.bo[bufnr].buftype ~= "" or vim.api.nvim_buf_get_name(bufnr) == "" then
+      notify("current buffer is not a file", vim.log.levels.WARN)
+      return
+    end
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    path = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p")
+    line = vim.api.nvim_buf_get_lines(bufnr, cursor[1] - 1, cursor[1], false)[1] or ""
+    lnum = cursor[1]
+    col = cursor[2] + 1
+  end
+
   local root = ensure_root()
   if not root then
     return
   end
-  local cursor = vim.api.nvim_win_get_cursor(0)
-  local path = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p")
-  local line = vim.api.nvim_buf_get_lines(bufnr, cursor[1] - 1, cursor[1], false)[1] or ""
   local name = opts.name
   if not name or name == "" then
-    name = vim.fn.fnamemodify(path, ":t") .. ":" .. cursor[1]
+    local base = vim.fn.fnamemodify(path, ":t")
+    if base == "" then
+      base = path
+    end
+    if vim.fn.isdirectory(path) == 1 then
+      name = base .. "/"
+    else
+      name = base .. ":" .. lnum
+    end
   end
   local note = opts.note
   if note == nil then
@@ -322,8 +364,8 @@ function M.add(opts)
     id = model.new_id(store.id_set()),
     name = name,
     path = path,
-    lnum = cursor[1],
-    col = cursor[2] + 1,
+    lnum = lnum,
+    col = col,
     note = note,
     line_text = line,
   })

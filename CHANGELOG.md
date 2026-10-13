@@ -3,10 +3,13 @@
 本專案所有重要變更都會記錄在此檔案。
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，
-
 並遵循 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。
 
 ## [Unreleased]
+
+### 新增
+- 在 oil buffer 中呼叫 `:OilmarksAdd` 可把目前目錄收成書籤
+- 跳轉目錄書籤時優先用 oil.open，否則 fallback 到 `:edit`
 
 ## [0.0.0] - 2026-10-01
 

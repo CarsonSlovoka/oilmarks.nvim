@@ -2,7 +2,7 @@
 
 Neovim 書籤插件。畫面上是一份可編輯的 buffer，用法對齊 [oil.nvim](https://github.com/stevearc/oil.nvim)：平常的編輯動作只改 buffer，`:w` 才寫回資料檔
 
-一筆書籤是「某個檔案的某一行」加上名稱與註解。清單是全域、扁平的。沒有資料夾，也沒有進入下一層
+一筆書籤是「某個檔案的某一行」或「某個目錄」加上名稱與註解 清單是全域、扁平的 沒有資料夾，也沒有進入下一層
 
 需要 Neovim 0.10 以上（欄位對齊用 inline virtual text）
 
@@ -25,10 +25,10 @@ lazy.nvim：
 
 ## 使用
 
-- `:Oilmarks` 在目前視窗打開清單。`:Oilmarks float` 用浮動視窗。`:Oilmarks trash` 打開垃圾桶
-- `:OilmarksAdd` 把目前檔案的目前行收進來，問一句註解。這個動作會立刻落盤，因為它不是在 oilmarks buffer 裡編輯
+- `:Oilmarks` 在目前視窗打開清單 `:Oilmarks float` 用浮動視窗 `:Oilmarks trash` 打開垃圾桶
+- `:OilmarksAdd` 把目前檔案的目前行收進來，或在 oil buffer 裡把目前目錄收進來，問一句註解 這個動作會立刻落盤，因為它不是在 oilmarks buffer 裡編輯
 - `:OilmarksNext` / `:OilmarksPrev` 在目前檔案裡跳下一筆／上一筆
-- `:OilmarksReload` 從磁碟重讀。磁碟比記憶體新時，`:w` 會拒絕覆蓋並提示這個指令
+- `:OilmarksReload` 從磁碟重讀 磁碟比記憶體新時，`:w` 會拒絕覆蓋並提示這個指令
 
 Buffer 裡：
 
@@ -54,7 +54,9 @@ Buffer 裡：
 a1b2c3d4    auth middleware    ~/proj/src/auth.lua:42    refresh token 過期
 ```
 
-看到的是名稱、位置、註解。位置寫成 `path:line` 或 `path:line:col`，`~` 會展開。改了位置之後，存檔時會重抓那一行的內容，當作之後對齊用的錨點
+看到的是名稱、位置、註解 位置寫成 `path:line` 或 `path:line:col`，`~` 會展開
+
+目錄書籤的位置是目錄路徑（行號固定 1） 改了位置之後，存檔時會重抓那一行的內容，當作之後對齊用的錨點
 
 ## 行號漂移
 
@@ -68,11 +70,7 @@ a1b2c3d4    auth middleware    ~/proj/src/auth.lua:42    refresh token 過期
 
 預設是 `stdpath("data")/oilmarks/bookmarks.lua`。原子寫入。載入失敗時拒絕覆蓋
 
-```vim
-:echo stdpath("data") .. '/oilmarks/bookmarks.lua'
-```
-
-資料層是 `lists[]`，每一份清單有自己的 `entries` 和 `trash`。v1 只用第一份 `root`，畫面也只編這一份。之後要加第二份清單不用改檔案形狀
+資料層是 `lists[]`，每一份清單有自己的 `entries` 和 `trash` v1 只用第一份 `root`，畫面也只編這一份 之後要加第二份清單不用改檔案形狀
 
 ```lua
 return {

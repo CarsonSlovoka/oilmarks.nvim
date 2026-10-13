@@ -7,9 +7,18 @@ local function read_lines(path)
   return vim.fn.readfile(path)
 end
 
+local function is_dir(path)
+  return path and vim.fn.isdirectory(path) == 1
+end
+
 --- Re-find a bookmark after the file has been edited.
 --- ok: line text still matches. reattached: same text, new line. stale/missing: unchanged lnum.
+--- Directories are always considered ok (no line text).
 function M.resolve(entry)
+  if is_dir(entry.path) then
+    entry.stale = false
+    return entry, "ok"
+  end
   local lines = read_lines(entry.path)
   if not lines then
     entry.stale = true
@@ -43,6 +52,11 @@ function M.resolve(entry)
 end
 
 function M.capture_line_text(entry)
+  if is_dir(entry.path) then
+    entry.line_text = ""
+    entry.stale = false
+    return entry
+  end
   local lines = read_lines(entry.path)
   if not lines then
     entry.stale = true

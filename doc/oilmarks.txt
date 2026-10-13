@@ -5,8 +5,9 @@ COMMANDS                                            *oilmarks*
 
 :Oilmarks [float] [trash]   Open the bookmark buffer. `float` uses a floating
                             window. `trash` opens the trash list.
-:OilmarksAdd                Bookmark the current file and line. Asks for a
-                            note. This writes immediately.
+:OilmarksAdd                Bookmark the current file and line, or the
+                            current directory when in an oil buffer. Asks
+                            for a note. This writes immediately.
 :OilmarksNext               Next bookmark in the current file.
 :OilmarksPrev               Previous bookmark in the current file.
 :OilmarksReload             Reload bookmarks.lua from disk.
