@@ -33,11 +33,12 @@ end
 function M.help(mode)
   local lines = {
     "<CR> jump    <C-v> vsplit    <C-s> split    p preview    - / q close    :w save",
+    "/ filter (type to narrow, <CR> keep, <Esc> cancel)    <C-l> clear filter",
     "columns: name <Tab> location <Tab> note. id is concealed. empty lines ignored.",
     "dd then :w moves a bookmark to trash. a pasted id is a copy.",
   }
   if mode == "trash" then
-    lines[3] = "r marks a row to restore. dd then :w purges it. both commit on :w."
+    lines[4] = "r marks a row to restore. dd then :w purges it. both commit on :w."
   end
   notify(table.concat(lines, "\n"))
 end
@@ -195,6 +196,10 @@ end
 function M.save_buffer(bufnr)
   local info = view.state(bufnr)
   if not info then
+    return false
+  end
+  if info.filter and info.filter ~= "" then
+    notify("clear the filter (<C-l>) before saving", vim.log.levels.WARN)
     return false
   end
   local parsed, err = view.parse(bufnr)

@@ -20,6 +20,10 @@ The buffer is the editor. `:w` commits. A failed parse aborts the write.
 Columns are tab-separated: concealed id, name, location, note.
 Location is `path:line` or `path:line:col`.
 
+Press `/` to filter the list incrementally (matches name, location, or note).
+`<CR>` keeps the filter, `<Esc>` cancels, `<C-l>` clears an active filter.
+Saving is refused while a filter is active.
+
 Delete a line and `:w` to trash it. Pasting a line with an existing id
 creates a copy. In the trash buffer, `r` marks a row for restore and `:w`
 commits; deleting a trash row and writing purges it.

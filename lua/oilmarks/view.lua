@@ -150,6 +150,145 @@ function M.parse(bufnr)
   return parse.parse_buffer(lines, model.normalize_location)
 end
 
+local function entry_matches(entry, query)
+  if not query or query == "" then
+    return true
+  end
+  local q = query:lower()
+  local hay = (entry.name or "") .. "\n" .. (entry.note or "") .. "\n" .. model.display_location(entry)
+  return hay:lower():find(q, 1, true) ~= nil
+end
+
+local function current_entries(bufnr)
+  local info = get(bufnr)
+  if not info then
+    return nil, "no state"
+  end
+  local parsed, err = M.parse(bufnr)
+  if not parsed then
+    return nil, err
+  end
+  local by_id = {}
+  for _, entry in ipairs(info.snapshot or {}) do
+    if entry.id then
+      by_id[entry.id] = entry
+    end
+  end
+  local entries = {}
+  for _, item in ipairs(parsed) do
+    local entry
+    if item.id and by_id[item.id] then
+      entry = vim.deepcopy(by_id[item.id])
+      entry.name = item.name
+      entry.path = item.path
+      entry.lnum = item.lnum
+      entry.col = item.col
+      entry.note = item.note
+    else
+      entry = model.blank_entry(item)
+    end
+    entries[#entries + 1] = entry
+  end
+  return entries
+end
+
+local function set_winbar(bufnr, filter)
+  local info = get(bufnr)
+  if not info then
+    return
+  end
+  local win = vim.fn.bufwinid(bufnr)
+  if win == -1 then
+    return
+  end
+  local prefix = info.mode == "trash" and " oilmarks trash" or " oilmarks"
+  if filter and filter ~= "" then
+    vim.wo[win].winbar = prefix .. "  /" .. filter .. "    name    location    note"
+  else
+    vim.wo[win].winbar = prefix .. "    name    location    note"
+  end
+end
+
+function M.clear_filter(bufnr)
+  local info = get(bufnr)
+  if not info or not info.filter or info.filter == "" then
+    return
+  end
+  local was_modified = info.was_modified
+  if vim.bo[bufnr].modified then
+    vim.notify("filter cleared; edits made while filtered were discarded", vim.log.levels.WARN, { title = "oilmarks" })
+  end
+  info.filter = nil
+  info.was_modified = nil
+  local entries = info.unfiltered or {}
+  info.unfiltered = nil
+  M.render(bufnr, entries, { modified = was_modified })
+  set_winbar(bufnr)
+end
+
+function M.start_filter(bufnr)
+  local info = get(bufnr)
+  if not info then
+    return
+  end
+  if info.filter and info.filter ~= "" then
+    M.clear_filter(bufnr)
+    info = get(bufnr)
+    if not info then
+      return
+    end
+  end
+  local entries, err = current_entries(bufnr)
+  if not entries then
+    vim.notify("cannot filter: " .. tostring(err), vim.log.levels.ERROR, { title = "oilmarks" })
+    return
+  end
+  info.unfiltered = entries
+  info.was_modified = vim.bo[bufnr].modified
+  local query = ""
+  local function apply()
+    local filtered = {}
+    for _, entry in ipairs(info.unfiltered) do
+      if entry_matches(entry, query) then
+        filtered[#filtered + 1] = entry
+      end
+    end
+    M.render(bufnr, filtered, { modified = false })
+    set_winbar(bufnr, query)
+    vim.cmd("redraw")
+  end
+  apply()
+  while true do
+    local ok, char = pcall(vim.fn.getcharstr)
+    if not ok or not char then
+      break
+    end
+    if char == "\27" then
+      query = ""
+      break
+    elseif char == "\r" or char == "\n" then
+      break
+    elseif char == "\8" or char == "\127" then
+      query = query:sub(1, -2)
+    elseif char == "\23" then
+      query = ""
+    else
+      query = query .. char
+    end
+    apply()
+  end
+  if query == "" then
+    M.render(bufnr, info.unfiltered, { modified = info.was_modified })
+    info.unfiltered = nil
+    info.was_modified = nil
+    info.filter = nil
+    set_winbar(bufnr)
+  else
+    info.filter = query
+    set_winbar(bufnr, query)
+  end
+end
+
 local function map(bufnr, lhs, rhs, desc)
   vim.keymap.set("n", lhs, rhs, { buffer = bufnr, nowait = true, silent = true, desc = desc })
 end
@@ -257,6 +396,12 @@ function M.attach(bufnr, info)
       map(bufnr, lhs, handlers[name], "oilmarks " .. name)
     end
   end
+  map(bufnr, "/", function()
+    M.start_filter(bufnr)
+  end, "oilmarks filter")
+  map(bufnr, "<C-l>", function()
+    M.clear_filter(bufnr)
+  end, "oilmarks clear filter")
   vim.keymap.set("i", "<Tab>", function()
     jump_field(1)
   end, { buffer = bufnr, desc = "oilmarks next field" })
